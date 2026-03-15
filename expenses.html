@@ -801,10 +801,7 @@
             <i class="fa-solid fa-trash"></i> مسح مصاريف اليوم
           </button>
           
-          <label class="toggle-switch">
-            <input type="checkbox" id="expensesSyncToggle" onchange="toggleExpensesSync()">
-            <span class="toggle-slider"></span>
-          </label>
+
         </div>
       </div>
 
@@ -919,10 +916,7 @@
             <i class="fa-solid fa-trash"></i> مسح رواتب اليوم
           </button>
           
-          <label class="toggle-switch">
-            <input type="checkbox" id="salariesSyncToggle" onchange="toggleSalariesSync()">
-            <span class="toggle-slider"></span>
-          </label>
+
         </div>
       </div>
 
@@ -1109,9 +1103,6 @@ let currentExpensesPage = 1;
 let currentWorkersPage = 1;
 const pageSize = 20;
 
-let expensesSyncEnabled = false;
-let salariesSyncEnabled = false;
-
 let activeWorkerId = null; // معرّف العامل النشط في modal الراتب
 
 // ============================================================
@@ -1130,9 +1121,6 @@ async function init() {
   
   // تحميل البيانات
   await loadAllData();
-  
-  // تحميل حالة المفاتيح
-  loadSyncStates();
   
   // تحديث الواجهة
   updateStats();
@@ -1162,50 +1150,6 @@ async function loadAllData() {
   
   // ترتيب المدفوعات تنازلياً
   allWorkerPayments.sort((a, b) => new Date(b.date) - new Date(a.date));
-}
-
-// ============================================================
-//  تحميل حالة المفاتيح
-// ============================================================
-function loadSyncStates() {
-  try {
-    expensesSyncEnabled = localStorage.getItem('pos_expenses_sync') === 'true';
-    salariesSyncEnabled = localStorage.getItem('pos_salaries_sync') === 'true';
-  } catch (e) {
-    expensesSyncEnabled = false;
-    salariesSyncEnabled = false;
-  }
-  
-  document.getElementById('expensesSyncToggle').checked = expensesSyncEnabled;
-  document.getElementById('salariesSyncToggle').checked = salariesSyncEnabled;
-  
-  // تحديث حالة أزرار المسح
-  updateClearButtons();
-}
-
-function toggleExpensesSync() {
-  expensesSyncEnabled = document.getElementById('expensesSyncToggle').checked;
-  localStorage.setItem('pos_expenses_sync', expensesSyncEnabled);
-  updateClearButtons();
-  window.toast.show(expensesSyncEnabled ? '✅ تم تفعيل الربط — المصاريف الجديدة ستظهر في التقارير' : '🔴 تم إيقاف الربط — المصاريف الجديدة لن تظهر في التقارير', 'info');
-}
-
-function toggleSalariesSync() {
-  salariesSyncEnabled = document.getElementById('salariesSyncToggle').checked;
-  localStorage.setItem('pos_salaries_sync', salariesSyncEnabled);
-  updateClearButtons();
-  window.toast.show(salariesSyncEnabled ? '✅ تم تفعيل الربط — الرواتب الجديدة ستظهر في التقارير' : '🔴 تم إيقاف الربط — الرواتب الجديدة لن تظهر في التقارير', 'info');
-}
-
-function updateClearButtons() {
-  const expensesBtn = document.getElementById('clearExpensesBtn');
-  const salariesBtn = document.getElementById('clearSalariesBtn');
-  
-  expensesBtn.disabled = expensesSyncEnabled;
-  salariesBtn.disabled = salariesSyncEnabled;
-  
-  expensesBtn.title = expensesSyncEnabled ? 'أوقف الربط أولاً' : 'مسح مصاريف اليوم من سجل المداخيل';
-  salariesBtn.title = salariesSyncEnabled ? 'أوقف الربط أولاً' : 'مسح رواتب اليوم من سجل المداخيل';
 }
 
 // ============================================================
@@ -1442,7 +1386,7 @@ async function saveExpense() {
     isPaid: false,
     paidDate: null,
     // ✅ يحمل قراره بنفسه — حسب حالة الزر لحظة الإنشاء
-    include_in_reports: expensesSyncEnabled,
+    include_in_reports: false,
     updatedAt: window.dateUtils.now()
   };
   
@@ -1505,17 +1449,6 @@ async function payExpense(id) {
   expense.isPaid = true;
   expense.paidDate = window.dateUtils.now();
   await window.dbManager.put('expenses', expense);
-  
-  // ✅ تسجيل في transactions إذا كان include_in_reports مفعلاً
-  if (expense.include_in_reports) {
-    await window.dbManager.add('transactions', {
-      type: 'expense',
-      amount: expense.amount,
-      date: expense.paidDate,
-      ref_id: expense.id,
-      note: `${expense.category}${expense.note ? ' - ' + expense.note : ''}`
-    });
-  }
   
   await loadAllData();
   updateStats();
@@ -1797,7 +1730,7 @@ async function confirmPaySalary() {
   
   await window.dbManager.add('workerPayments', payment);
   
-  // ✅ إضافة كمصروف تلقائي مع include_in_reports حسب حالة الزر
+  // إضافة كمصروف تلقائي في سجل المصاريف
   const salaryExpenseId = await window.dbManager.add('expenses', {
     category: 'رواتب',
     amount,
@@ -1805,20 +1738,9 @@ async function confirmPaySalary() {
     note: `راتب ${worker.firstName} ${worker.lastName} - ${month}`,
     isPaid: true,
     paidDate: window.dateUtils.now(),
-    include_in_reports: salariesSyncEnabled
+    include_in_reports: false
   });
 
-  // ✅ تسجيل في transactions إذا كان الربط مفعلاً
-  if (salariesSyncEnabled) {
-    await window.dbManager.add('transactions', {
-      type: 'salary',
-      amount,
-      date: window.dateUtils.now(),
-      ref_id: salaryExpenseId,
-      note: `راتب ${worker.firstName} ${worker.lastName} - ${month}`
-    });
-  }
-  
   await loadAllData();
   window.modalManager.close('paySalaryModal');
   renderWorkers();
@@ -1920,11 +1842,6 @@ async function addToDailyEntries(type, label, amount) {
 }
 
 async function clearDailyExpenses() {
-  if (expensesSyncEnabled) {
-    window.toast.show('أوقف الربط أولاً', 'warning');
-    return;
-  }
-  
   const confirmed = await window.modalManager.confirm('مسح جميع مصاريف اليوم من سجل المداخيل؟');
   if (!confirmed) return;
   
@@ -1948,11 +1865,6 @@ async function clearDailyExpenses() {
 }
 
 async function clearDailySalaries() {
-  if (salariesSyncEnabled) {
-    window.toast.show('أوقف الربط أولاً', 'warning');
-    return;
-  }
-  
   const confirmed = await window.modalManager.confirm('مسح جميع رواتب اليوم من سجل المداخيل؟');
   if (!confirmed) return;
   
