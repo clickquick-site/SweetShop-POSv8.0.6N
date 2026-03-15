@@ -719,6 +719,75 @@
       margin-top: 5px;
       transition: width 0.3s;
     }
+
+    /* ── زر الإغلاق اليومي ── */
+    .btn-daily-close {
+      background: linear-gradient(135deg, #f59e0b, #b45309);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 7px 16px;
+      font-size: 0.85rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .btn-daily-close:hover {
+      opacity: 0.88;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(245, 158, 11, 0.4);
+    }
+
+    /* ── ملخص الإغلاق داخل Modal ── */
+    .dc-summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 16px 20px;
+    }
+    .dc-summary-item {
+      background: var(--bg-dark);
+      border-radius: 10px;
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid var(--border);
+    }
+    .dc-summary-item.full-width {
+      grid-column: 1 / -1;
+    }
+    .dc-summary-label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      font-weight: 700;
+    }
+    .dc-summary-value {
+      font-size: 1rem;
+      font-weight: 900;
+      color: var(--text-primary);
+    }
+    .dc-summary-value.revenue  { color: #10b981; }
+    .dc-summary-value.profit   { color: #7c3aed; }
+    .dc-summary-value.expenses { color: #f59e0b; }
+    .dc-summary-value.debts    { color: #ef4444; }
+    .dc-warn-box {
+      margin: 0 20px 16px;
+      padding: 10px 14px;
+      background: rgba(245,158,11,0.08);
+      border: 1px solid rgba(245,158,11,0.28);
+      border-radius: 10px;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    .dc-warn-box strong {
+      color: var(--primary-light);
+    }
   </style>
 </head>
 <body>
@@ -1014,6 +1083,9 @@
           <input type="date" id="dailyDate" class="form-input" style="width:150px;" onchange="loadDailyReport()"/>
           <button class="btn btn-primary btn-sm" onclick="printDailyReport()">
             <i class="fa-solid fa-print"></i> طباعة
+          </button>
+          <button class="btn-daily-close" onclick="openDailyClose()">
+            <i class="fa-solid fa-store-slash"></i> إغلاق يومي
           </button>
         </div>
       </div>
@@ -1370,6 +1442,65 @@
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 <div class="sidebar" id="sidebar">
   <!-- محتوى sidebar قياسي -->
+</div>
+
+<!-- ══ Modal: الإغلاق اليومي ══ -->
+<div class="modal-overlay" id="dailyCloseModal">
+  <div class="modal modal-sm">
+    <div class="modal-header" style="border-bottom-color: #f59e0b;">
+      <span class="modal-title">
+        <i class="fa-solid fa-store-slash" style="color:#f59e0b;"></i>
+        إغلاق يومي — <span id="dcDate"></span>
+      </span>
+      <button class="modal-close" onclick="closeModal('dailyCloseModal')">✕</button>
+    </div>
+
+    <!-- ملخص مالي لليوم -->
+    <div class="dc-summary-grid">
+      <div class="dc-summary-item">
+        <span class="dc-summary-label">💰 إجمالي المبيعات</span>
+        <span class="dc-summary-value revenue" id="dcTotal">—</span>
+      </div>
+      <div class="dc-summary-item">
+        <span class="dc-summary-label">💵 نقدي مقبوض</span>
+        <span class="dc-summary-value revenue" id="dcCash">—</span>
+      </div>
+      <div class="dc-summary-item">
+        <span class="dc-summary-label">📄 عدد الفواتير</span>
+        <span class="dc-summary-value" id="dcCount">—</span>
+      </div>
+      <div class="dc-summary-item">
+        <span class="dc-summary-label">💳 ديون جديدة</span>
+        <span class="dc-summary-value debts" id="dcNewDebt">—</span>
+      </div>
+      <div class="dc-summary-item">
+        <span class="dc-summary-label">🧾 المصاريف</span>
+        <span class="dc-summary-value expenses" id="dcExpenses">—</span>
+      </div>
+      <div class="dc-summary-item">
+        <span class="dc-summary-label">📊 صافي الربح</span>
+        <span class="dc-summary-value profit" id="dcProfit">—</span>
+      </div>
+    </div>
+
+    <div class="dc-warn-box">
+      <i class="fa-solid fa-circle-info" style="color:#f59e0b;"></i>
+      بعد التأكيد سيُعاد ترقيم الفواتير من
+      <strong>#001</strong> ابتداءً من أوّل فاتورة الغد.
+      لا يؤثر ذلك على أي بيانات أو سجلات محفوظة.
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-primary" style="flex:2; background:linear-gradient(135deg,#f59e0b,#b45309);"
+              id="dcConfirmBtn" onclick="confirmDailyClose()">
+        <i class="fa-solid fa-store-slash"></i> تأكيد الإغلاق وإعادة العداد
+      </button>
+      <button class="btn btn-secondary" style="flex:1;"
+              onclick="closeModal('dailyCloseModal')">
+        إلغاء
+      </button>
+    </div>
+  </div>
 </div>
 
 <!-- Toast Container -->
@@ -2904,6 +3035,73 @@ async function printSaleInvoice(saleId) {
     await window.printInvoice(saleData, items);
   } else {
     window.toast.show('⚠️ وحدة الطباعة غير محمّلة (print.js)', 'error');
+  }
+}
+
+// ============================================================
+//  الإغلاق اليومي
+// ============================================================
+async function openDailyClose() {
+  const today  = window.dateUtils.today();              // 'YYYY-MM-DD'
+
+  // مبيعات اليوم (بدون وصولات التسديد القديم)
+  const todaySales = allSales.filter(s =>
+    !s.isCancelled &&
+    s.date.startsWith(today) &&
+    s.invoiceKind !== 'settlement'
+  );
+
+  const totalSales = todaySales.reduce((sum, s) => sum + (s.total || 0), 0);
+  const totalCash  = todaySales.reduce((sum, s) => sum + (s.paid  || 0), 0);
+  const totalDebt  = todaySales.reduce((sum, s) => sum + Math.max(0, (s.total||0) - (s.paid||0)), 0);
+  const count      = todaySales.length;
+
+  // مصاريف اليوم
+  const todayExp = allExpenses.filter(e =>
+    e.date?.startsWith(today) && e.isPaid && e.include_in_reports === true
+  );
+  const totalExp = todayExp.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+  // ربح تقديري = نقدي − تكلفة تناسبية − مصاريف
+  let grossProfit = 0;
+  for (const sale of todaySales.filter(s => (s.paid || 0) > 0)) {
+    const cost = calcSaleCost(sale.id);
+    const ratio = sale.total > 0 ? sale.paid / sale.total : 1;
+    grossProfit += (sale.paid || 0) - cost * ratio;
+  }
+  const netProfit = grossProfit - totalExp;
+
+  // تعبئة Modal
+  const fmt = v => window.currencyFormatter.format(v);
+  document.getElementById('dcDate').textContent     = window.dateUtils.formatDate(today);
+  document.getElementById('dcTotal').textContent    = fmt(totalSales);
+  document.getElementById('dcCash').textContent     = fmt(totalCash);
+  document.getElementById('dcCount').textContent    = count + ' فاتورة';
+  document.getElementById('dcNewDebt').textContent  = fmt(totalDebt);
+  document.getElementById('dcExpenses').textContent = fmt(totalExp);
+  document.getElementById('dcProfit').textContent   = fmt(netProfit);
+
+  window.modalManager.open('dailyCloseModal');
+}
+
+async function confirmDailyClose() {
+  // منع النقر المزدوج
+  const btn = document.getElementById('dcConfirmBtn');
+  if (btn) btn.disabled = true;
+
+  try {
+    await window.resetDailyCounter();          // app.js → InvoiceCounter.resetDaily()
+    window.modalManager.close('dailyCloseModal');
+    window.toast.show(
+      '✅ تم الإغلاق اليومي — الفاتورة التالية ستكون #001',
+      'success', 4000
+    );
+    window.SoundManager?.play('sell');
+  } catch (e) {
+    window.toast.show('❌ خطأ أثناء إعادة العداد: ' + (e?.message || e), 'error');
+    window.SoundManager?.play('warning');
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
